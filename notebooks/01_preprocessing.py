@@ -66,6 +66,13 @@ if df[TARGET].dtype == "object":
 df[TARGET] = df[TARGET].astype(int)
 print(df[TARGET].value_counts())
 
+# %% Step 3e: Remove impossible values (outliers)
+before = len(df)
+df = df[(df["person_age"] <= 100) &
+        (df["person_emp_exp"] <= df["person_age"] - 16)]   # worked since age 16 at the earliest
+df = df.reset_index(drop=True)
+print("Rows removed:", before - len(df), "| Shape now:", df.shape)
+
 # %% Step 4: Encode text columns (models only understand numbers)
 cat_cols = df.select_dtypes(exclude="number").columns.tolist()
 print("Text columns:", cat_cols)
