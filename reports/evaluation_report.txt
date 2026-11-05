@@ -1,0 +1,19 @@
+EVALUATION REPORT: BEFORE vs AFTER (test data)
+                                   Accuracy  Precision  Recall  F1-Score
+Model                                                                   
+Before (default RF, all features)    0.9290     0.8968  0.7690    0.8280
+After feature selection              0.9198     0.8618  0.7610    0.8083
+After tuning (final model)           0.9291     0.8950  0.7715    0.8287
+
+Best parameters: {'max_depth': None, 'min_samples_leaf': 1, 'n_estimators': 200}
+Features used (22): ['person_age', 'person_income', 'person_emp_exp', 'loan_amnt', 'loan_int_rate', 'loan_percent_income', 'cb_person_cred_hist_length', 'credit_score', 'person_gender_male', 'person_education_Bachelor', 'person_education_Doctorate', 'person_education_High School', 'person_education_Master', 'person_home_ownership_OTHER', 'person_home_ownership_OWN', 'person_home_ownership_RENT', 'loan_intent_EDUCATION', 'loan_intent_HOMEIMPROVEMENT', 'loan_intent_MEDICAL', 'loan_intent_PERSONAL', 'loan_intent_VENTURE', 'previous_loan_defaults_on_file_Yes']
+
+CLASSIFICATION REPORT (final model)
+              precision    recall  f1-score   support
+
+    Rejected       0.94      0.97      0.96      6999
+    Approved       0.90      0.77      0.83      2000
+
+    accuracy                           0.93      8999
+   macro avg       0.92      0.87      0.89      8999
+weighted avg       0.93      0.93      0.93      8999

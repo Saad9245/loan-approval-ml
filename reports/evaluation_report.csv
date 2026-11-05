@@ -1,0 +1,4 @@
+Model,Accuracy,Precision,Recall,F1-Score
+"Before (default RF, all features)",0.929,0.8968,0.769,0.828
+After feature selection,0.9198,0.8618,0.761,0.8083
+After tuning (final model),0.9291,0.895,0.7715,0.8287
