@@ -3,24 +3,27 @@
 # Goal: Measure model quality and improve the best model (Random Forest).
 
 # %% Settings
+import sys
 from pathlib import Path
-import joblib
-import pandas as pd
+
+_root = Path.cwd() if (Path.cwd() / "data").exists() else Path.cwd().parent
+sys.path.insert(0, str(_root))
+
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import joblib
+import pandas as pd
 import seaborn as sns
 
-from sklearn.model_selection import train_test_split, cross_val_score, StratifiedKFold, GridSearchCV
-from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import cross_val_score, StratifiedKFold, GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import (accuracy_score, precision_score, recall_score,
                              f1_score, classification_report, confusion_matrix)
 
-ROOT = Path.cwd()
-if not (ROOT / "data").exists():
-    ROOT = ROOT.parent
+from src.preprocess import load_processed, split_and_scale
 
+ROOT = _root
 TARGET = "loan_status"
 REPORT_DIR = ROOT / "reports"
 FIG_DIR = REPORT_DIR / "figures"
@@ -53,20 +56,9 @@ def plot_confusion(model, X_te, y_te, title, filename):
 
 
 # %% Step 1: Load data and split (same split as Week 3), then scale on training data only
-df = pd.read_csv(ROOT / "data" / "processed" / "loan_cleaned.csv")
-df = df[(df["person_age"] <= 100) &
-        (df["person_emp_exp"] <= df["person_age"] - 16)].reset_index(drop=True)
-
+df = load_processed()
 X = df.drop(TARGET, axis=1)
-y = df[TARGET]
-X_train_raw, X_test_raw, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y)
-
-scaler = StandardScaler().fit(X_train_raw)
-X_train = pd.DataFrame(scaler.transform(X_train_raw), columns=X.columns)
-X_test = pd.DataFrame(scaler.transform(X_test_raw), columns=X.columns)
-y_train = y_train.reset_index(drop=True)
-y_test = y_test.reset_index(drop=True)
+X_train, X_test, y_train, y_test, scaler = split_and_scale(df)
 print("Train:", X_train.shape, "| Test:", X_test.shape)
 
 # %% Step 2: BEFORE model (default Random Forest, all features)
@@ -102,7 +94,7 @@ plt.tight_layout()
 plt.savefig(FIG_DIR / "15_feature_importances.png", dpi=150)
 plt.close()
 
-selected = importances[importances >= 0.01].index.tolist()   # keep useful features only
+selected = importances[importances >= 0.01].index.tolist()
 print(f"\nKept {len(selected)} of {len(X.columns)} features:", selected)
 
 rf_selected = RandomForestClassifier(random_state=42, n_jobs=-1)
@@ -156,16 +148,23 @@ plot_confusion(best_model, X_test[use_cols], y_test,
                "Confusion Matrix (After)", "14_confusion_matrix_after.png")
 
 # %% Step 8: Save the optimized model (used again in Week 6)
-joblib.dump(best_model, MODEL_DIR / "model.pkl")
+joblib.dump(best_model, MODEL_DIR / "model.pkl", compress=3)
 joblib.dump(scaler, MODEL_DIR / "scaler.pkl")
 joblib.dump(use_cols, MODEL_DIR / "features.pkl")
 joblib.dump(list(X.columns), MODEL_DIR / "all_columns.pkl")
 print("Saved model, scaler and feature lists to models/")
 
 # %% [markdown]
-# ## Evaluation Summary (write in your own words after running)
-# - Before vs after: did accuracy, recall and F1 improve? By how much? ...
-# - What do the confusion matrices show (how many approved loans were missed)? ...
-# - Top 3 most important features: ...
-# - Best hyperparameters found: ...
-# - Why is accuracy alone not enough for this dataset? ...
+# ## Evaluation Summary
+# - Before vs after: tuning raised F1 only slightly (0.8280 to 0.8287) and accuracy
+#   from 0.9290 to 0.9291. The default Random Forest was already close to its best.
+#   Feature selection lowered F1 to 0.8083, so all 22 features were kept.
+# - Confusion matrix: the final model finds about 77% of approved loans (recall 0.7715),
+#   so roughly 457 of 2,000 approved test loans are missed. Precision is 0.895, so
+#   when it predicts Approved it is usually right.
+# - Top 3 features: previous_loan_defaults_on_file_Yes (0.224), loan_percent_income
+#   (0.164), loan_int_rate (0.158). This matches the EDA findings.
+# - Best hyperparameters: n_estimators=200, max_depth=None, min_samples_leaf=1.
+# - Accuracy alone is not enough because 78% of loans are rejected, so a model that
+#   always predicts Rejected would score about 78%. Precision, recall and F1 show how
+#   well the rare Approved class is found.

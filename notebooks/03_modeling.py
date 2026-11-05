@@ -4,46 +4,36 @@
 # Goal: Train 3 ML models and compare them on TEST data.
 
 # %% Settings
+import sys
 from pathlib import Path
-import pandas as pd
+
+_root = Path.cwd() if (Path.cwd() / "data").exists() else Path.cwd().parent
+sys.path.insert(0, str(_root))
+
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
 
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
-ROOT = Path.cwd()
-if not (ROOT / "data").exists():
-    ROOT = ROOT.parent
+from src.preprocess import load_processed, split_and_scale
 
+ROOT = _root
 TARGET = "loan_status"
 REPORT_DIR = ROOT / "reports"
 FIG_DIR = REPORT_DIR / "figures"
 REPORT_DIR.mkdir(exist_ok=True)
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 
-# %% Step 1: Load the cleaned data from Week 1
-df = pd.read_csv(ROOT / "data" / "processed" / "loan_cleaned.csv")
-
-# Safety: make sure impossible values are removed (same rule as Week 1)
-df = df[(df["person_age"] <= 100) &
-        (df["person_emp_exp"] <= df["person_age"] - 16)].reset_index(drop=True)
+# %% Step 1 and 2: Load cleaned data, split FIRST, then scale (functions from src/preprocess.py)
+df = load_processed()
 print("Shape:", df.shape)
-
-# %% Step 2: Split FIRST, then scale (fit scaler on training data only)
-X = df.drop(TARGET, axis=1)
-y = df[TARGET]
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y)
-
-scaler = StandardScaler()
-X_train = scaler.fit_transform(X_train)
-X_test = scaler.transform(X_test)
+X_train, X_test, y_train, y_test, scaler = split_and_scale(df)
 print("Train:", X_train.shape, "| Test:", X_test.shape)
 
 # %% Step 3: Baseline to beat (a "model" that always predicts Rejected)
@@ -59,8 +49,8 @@ models = {
 
 results = []
 for name, model in models.items():
-    model.fit(X_train, y_train)          # learn from training data
-    test_pred = model.predict(X_test)    # judge on unseen test data
+    model.fit(X_train, y_train)
+    test_pred = model.predict(X_test)
     results.append({
         "Model": name,
         "Test Accuracy": accuracy_score(y_test, test_pred),
@@ -76,7 +66,6 @@ comparison = comparison.sort_values("Test Accuracy", ascending=False)
 print("\nMODEL COMPARISON (all metrics on test data)")
 print(comparison)
 print(f"\nBaseline (always Rejected): {baseline:.4f}")
-
 comparison.to_csv(REPORT_DIR / "model_comparison.csv")
 
 # %% Step 6: Chart of test accuracy
@@ -91,8 +80,11 @@ plt.savefig(FIG_DIR / "12_model_comparison.png", dpi=150)
 plt.close()
 
 # %% [markdown]
-# ## Model Comparison Summary (write in your own words after running)
-# - Best model on test data: ...
-# - Is the best model clearly better than the baseline? ...
-# - Which model has the best recall and F1 (finds the most approved loans)? ...
-# - Which model do I take to Week 4 for improvement, and why? ...
+# ## Model Comparison Summary
+# - Best model on test data: Random Forest (accuracy 92.9%, F1 0.828).
+# - Clearly better than the baseline? Yes: baseline (always Rejected) is about 77.8%,
+#   and all three models beat it.
+# - Best recall: Decision Tree (0.7795), but its precision is low (0.7557). Random
+#   Forest has the best balance (precision 0.8968, recall 0.769, F1 0.828).
+# - Model for Week 4: Random Forest, because it is best on accuracy, precision and F1,
+#   and it gives feature importances for feature selection.
